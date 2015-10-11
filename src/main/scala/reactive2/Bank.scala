@@ -99,7 +99,7 @@ class Bank extends Actor {
   }
 }
 
-object BankMain extends App {
+object BankApp extends App {
   val system = ActorSystem("Reactive2")
   val mainActor = system.actorOf(Props[Bank], "mainActor")
 

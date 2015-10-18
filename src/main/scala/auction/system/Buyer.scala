@@ -17,7 +17,7 @@ class Buyer(var moneyToSpend: BigDecimal) extends Actor {
     case StartBidding(initialBid, auction) => sendBidIfCanAfford(initialBid, auction)
     case BidAccepted => _
     case BidTooLow(offered, expected) => tryToTopBid(offered, expected, sender())
-    case BidTopBySomeoneElse(previous, actualHighest, step) => handleBidTopBySomeoneElse(previous, actualHighest, step, sender())
+    case BidTopBySomeoneElse(previous, actualHighest, step) => tryToTopBid(previous, actualHighest + step, sender())
     case AuctionWon(winningOffer) => handleAuctionWon(winningOffer, sender())
   }
 
@@ -38,10 +38,6 @@ class Buyer(var moneyToSpend: BigDecimal) extends Actor {
     offers = offers - SentBid(winningOffer, auction)
     moneyToSpend -= winningOffer
     wonAuctions = wonAuctions + WonAuction(winningOffer, auction)
-  }
-
-  private def handleBidTopBySomeoneElse(previous: BigDecimal, actualHighest: BigDecimal, requiredStep: BigDecimal, auction: ActorRef): Unit = {
-    tryToTopBid(previous, actualHighest + requiredStep, auction)
   }
 
   private def canAfford(offer: BigDecimal): Boolean = {

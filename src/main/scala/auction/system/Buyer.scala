@@ -2,7 +2,7 @@ package auction.system
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.LoggingReceive
-import auction.system.Auction.{AuctionWon, BidAccepted, BidTooLow, BidTopBySomeoneElse}
+import auction.system.Bidding.{AuctionWon, BidAccepted, BidTooLow, BidTopBySomeoneElse}
 import auction.system.Buyer.{Bid, SentBid, StartBidding, WonAuction}
 
 /**

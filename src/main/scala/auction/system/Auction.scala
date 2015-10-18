@@ -2,11 +2,11 @@ package auction.system
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.LoggingReceive
-import auction.system.Auction._
-import auction.system.AuctionCreated.{BidTimerExpired, StartBidTimer}
+import auction.system.AuctionCreated.BidTimerExpired
 import auction.system.AuctionIgnored.{DeleteTimerExpired, Relist}
+import auction.system.Bidding._
 import auction.system.Buyer.{Bid => BuyerOffer}
-import auction.system.Timers.{BidTimer, DeleteTimer}
+import auction.system.Timers.{BidTimer, DeleteTimer, StartBidTimer}
 
 import scala.concurrent.duration._
 
@@ -96,13 +96,15 @@ object Timers {
 
   case class BidTimer(duration: FiniteDuration)
 
+  case object StartBidTimer
+
   case class DeleteTimer(duration: FiniteDuration)
+
+  case object StartDeleteTimer
 
 }
 
 object AuctionCreated {
-
-  case object StartBidTimer
 
   case object BidTimerExpired
 
@@ -110,16 +112,13 @@ object AuctionCreated {
 
 object AuctionIgnored {
 
-  case object StartDeleteTimer
-
   case object DeleteTimerExpired
 
   case object Relist
 
 }
 
-
-object Auction {
+object Bidding {
 
   case class Bid(amount: BigDecimal, buyer: ActorRef)
 
@@ -130,6 +129,11 @@ object Auction {
   case class BidTopBySomeoneElse(previousOffer: BigDecimal, currentHighestOffer: BigDecimal, requiredStep: BigDecimal)
 
   case class AuctionWon(winningOffer: BigDecimal)
+
+}
+
+
+object Auction {
 
   def props(step: BigDecimal,
             initialPrice: BigDecimal,

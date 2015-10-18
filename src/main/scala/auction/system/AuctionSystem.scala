@@ -3,8 +3,8 @@ package auction.system
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.event.LoggingReceive
 import auction.system.AuctionCoordinator.Start
-import auction.system.AuctionCreated.StartBidTimer
 import auction.system.Buyer.StartBidding
+import auction.system.Timers.StartBidTimer
 
 /**
  * Created by novy on 18.10.15.

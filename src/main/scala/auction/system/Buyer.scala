@@ -1,6 +1,6 @@
 package auction.system
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.event.LoggingReceive
 import auction.system.Auction.{AuctionWon, BidAccepted, BidTooLow, BidTopBySomeoneElse}
 import auction.system.Buyer.{Bid, SentBid, StartBidding, WonAuction}
@@ -15,7 +15,7 @@ class Buyer(var moneyToSpend: BigDecimal) extends Actor {
 
   override def receive: Receive = LoggingReceive {
     case StartBidding(initialBid, auction) => sendBidIfCanAfford(initialBid, auction)
-    case BidAccepted => _
+    case BidAccepted =>
     case BidTooLow(offered, expected) => tryToTopBid(offered, expected, sender())
     case BidTopBySomeoneElse(previous, actualHighest, step) => tryToTopBid(previous, actualHighest + step, sender())
     case AuctionWon(winningOffer) => handleAuctionWon(winningOffer, sender())
@@ -41,7 +41,7 @@ class Buyer(var moneyToSpend: BigDecimal) extends Actor {
   }
 
   private def canAfford(offer: BigDecimal): Boolean = {
-    val totalOffers: BigDecimal = offers
+    val totalOffers = offers
       .map(_.amount)
       .foldLeft(BigDecimal(0))(_ + _)
 
@@ -58,5 +58,7 @@ object Buyer {
   case class Bid(amount: BigDecimal)
 
   case class WonAuction(amount: BigDecimal, auction: ActorRef)
+
+  def props(moneyToSpend: BigDecimal): Props = Props(new Buyer(moneyToSpend))
 
 }

@@ -1,8 +1,9 @@
 package auction.system
 
-import akka.actor.{ActorRef, Props, Actor, ActorSystem}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.event.LoggingReceive
 import auction.system.AuctionCoordinator.Start
+import auction.system.AuctionCreated.StartBidTimer
 import auction.system.Buyer.StartBidding
 
 /**
@@ -23,10 +24,13 @@ class AuctionCoordinator extends Actor {
   }
 
   private def startSystem(): Unit = {
-    val auction1: ActorRef = context.actorOf(Auction.props(step = BigDecimal(0.50), initialPrice = BigDecimal(12)), "auction1")
+    val auction1: ActorRef = context.actorOf(Auction.props(step = BigDecimal(0.50), initialPrice = BigDecimal(10)), "auction1")
     val auction2: ActorRef = context.actorOf(Auction.props(step = BigDecimal(1), initialPrice = BigDecimal(0)), "auction2")
 
-    val buyer1: ActorRef = context.actorOf(Buyer.props(moneyToSpend = BigDecimal(10)), "buyer1")
+    auction1 ! StartBidTimer
+    auction2 ! StartBidTimer
+
+    val buyer1: ActorRef = context.actorOf(Buyer.props(moneyToSpend = BigDecimal(20)), "buyer1")
     val buyer2: ActorRef = context.actorOf(Buyer.props(moneyToSpend = BigDecimal(20)), "buyer2")
     val buyer3: ActorRef = context.actorOf(Buyer.props(moneyToSpend = BigDecimal(40)), "buyer3")
 

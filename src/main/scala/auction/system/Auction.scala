@@ -1,94 +1,104 @@
 package auction.system
 
-import akka.actor.{Actor, ActorRef, Props}
-import akka.event.LoggingReceive
-import auction.system.AuctionCreated.BidTimerExpired
+import akka.actor._
+import auction.system.AuctionCreated.{BidTimerExpired, StartAuction}
 import auction.system.AuctionIgnored.{DeleteTimerExpired, Relist}
 import auction.system.Bidding._
 import auction.system.Buyer.{Bid => BuyerOffer}
-import auction.system.Timers.{BidTimer, DeleteTimer, StartBidTimer}
+import auction.system.Data._
+import auction.system.States._
+import auction.system.Timers.{BidTimer, DeleteTimer}
 
 import scala.concurrent.duration._
 
 /**
  * Created by novy on 18.10.15.
  */
-class Auction(bidTimer: BidTimer,
-              deleteTimer: DeleteTimer,
-              step: BigDecimal,
-              initialPrice: BigDecimal) extends Actor {
+class Auction extends LoggingFSM[AuctionState, AuctionData] {
 
   import context._
 
-  private var highestOffer: Option[Bid] = None
+  startWith(Idle, Uninitialized)
 
-  override def receive: Receive = LoggingReceive {
-    case StartBidTimer => startAuction()
+  when(Idle) {
+    case Event(StartAuction(timers, params), Uninitialized) => startBidTimerAndBecomeCreated(timers, params)
   }
 
-  private def startAuction(): Unit = {
-    startBidTimer()
-    become(created)
+  when(Created) {
+    case Event(BidTimerExpired, cfg@Config(timers, _)) =>
+      startDeleteTimer(timers.deleteTimer)
+      goto(Ignored) using cfg
+
+    case Event(BuyerOffer(amount), cfg@Config(_, params)) if exceedsInitialValue(amount, params) =>
+      notifyBuyerThatBidHasBeenAccepted(amount, sender())
+      goto(Activated) using AuctionInProgress(cfg, List(Bid(amount, sender())))
+
+    case Event(BuyerOffer(amount), cfg@Config(_, params)) if !exceedsInitialValue(amount, params) =>
+      notifyAboutTooLowBid(amount, sender(), requiredNextBid(params))
+      stay using cfg
   }
 
-  private def startBidTimer(): Unit = system.scheduler.scheduleOnce(bidTimer.duration, self, BidTimerExpired)
-
-  def created: Receive = LoggingReceive {
-    case BidTimerExpired =>
-      startDeleteTimer()
-      become(ignored)
-
-    case BuyerOffer(amount) =>
-      handleNewOffer(amount, sender()) foreach (_ => become(activated))
+  when(Ignored) {
+    case Event(DeleteTimerExpired, _) => stop()
+    case Event(Relist, Config(timers, params)) => startBidTimerAndBecomeCreated(timers, params)
   }
 
-  private def startDeleteTimer(): Unit = system.scheduler.scheduleOnce(deleteTimer.duration, self, DeleteTimerExpired)
+  when(Activated) {
+    case Event(BuyerOffer(amount), AuctionInProgress(cfg@Config(_, params), offers@topOffer :: _)) if exceedsOldBid(amount, topOffer, params) =>
+      notifyBuyerThatBidHasBeenAccepted(amount, sender())
+      notifyPreviousBuyerAboutBidTop(topOffer, amount, params)
+      stay using AuctionInProgress(cfg, Bid(amount, sender()) :: offers)
 
-  def ignored: Receive = LoggingReceive {
-    case DeleteTimerExpired => stop(self)
-    case Relist => startAuction()
+    case Event(BuyerOffer(amount), data@AuctionInProgress(Config(_, params), topOffer :: _)) if !exceedsOldBid(amount, topOffer, params) =>
+      notifyAboutTooLowBid(amount, sender(), requiredNextBid(params, Some(topOffer)))
+      stay using data
+
+    case Event(BidTimerExpired, AuctionInProgress(Config(timers, _), winner :: _)) =>
+      startDeleteTimer(timers.deleteTimer)
+      notifyWinner(winner)
+      goto(Sold) using AuctionEnded(winner)
   }
 
-  def activated: Receive = LoggingReceive {
-    case BuyerOffer(amount) => handleNewOffer(amount, sender())
-    case BidTimerExpired =>
-      startDeleteTimer()
-      notifyBuyer()
-      become(sold)
+  when(Sold) {
+    case Event(DeleteTimerExpired, _) => stop()
   }
 
-  private def notifyBuyer(): Unit = {
-    highestOffer foreach (offer => offer.buyer ! AuctionWon(offer.amount))
+  private def startBidTimerAndBecomeCreated(timers: AuctionTimers, params: AuctionParams): Auction.this.State = {
+    startBidTimer(timers.bidTimer)
+    goto(Created) using Config(timers, params)
   }
 
-  def sold: Receive = LoggingReceive {
-    case DeleteTimerExpired => stop(self)
+  private def startBidTimer(bidTimer: BidTimer): Unit = system.scheduler.scheduleOnce(bidTimer.duration, self, BidTimerExpired)
+
+  private def startDeleteTimer(timer: DeleteTimer): Unit = system.scheduler.scheduleOnce(timer.duration, self, DeleteTimerExpired)
+
+  private def notifyWinner(highestOffer: Bid): Unit = {
+    highestOffer.buyer ! AuctionWon(highestOffer.amount)
+  }
+
+  private def notifyBuyerThatBidHasBeenAccepted(amount: BigDecimal, buyer: ActorRef): Unit = {
+    buyer ! BidAccepted(amount)
+  }
+
+  private def notifyAboutTooLowBid(amount: BigDecimal, buyer: ActorRef, expectedBid: BigDecimal): Unit = {
+    buyer ! BidTooLow(amount, expectedBid)
   }
 
 
-  private def handleNewOffer(newBid: BigDecimal, buyer: ActorRef): Option[Bid] = {
-    if (exceedsOldBid(newBid)) {
-      val previousHighestOffer = highestOffer
-      highestOffer = Some(Bid(newBid, buyer))
-      buyer ! BidAccepted(newBid)
-      previousHighestOffer foreach notifyPreviousBuyerAboutBidTop(newBid)
-      return highestOffer
-    }
-
-    buyer ! BidTooLow(newBid, requiredNextBid())
-    None
+  private def notifyPreviousBuyerAboutBidTop(previousHighestOffer: Bid, newOfferValue: BigDecimal, params: AuctionParams): Unit = {
+    previousHighestOffer.buyer ! BidTopBySomeoneElse(previousHighestOffer.amount, newOfferValue, params.step)
   }
 
-  private def notifyPreviousBuyerAboutBidTop(newOffer: BigDecimal)(previousHighestOffer: Bid): Unit = {
-    previousHighestOffer.buyer ! BidTopBySomeoneElse(previousHighestOffer.amount, newOffer, step)
+  private def exceedsOldBid(newBidValue: BigDecimal, oldBid: Bid, auctionParams: AuctionParams): Boolean = {
+    newBidValue >= requiredNextBid(auctionParams, Some(oldBid))
   }
 
-  private def exceedsOldBid(newBid: BigDecimal): Boolean = {
-    newBid >= requiredNextBid()
+  private def exceedsInitialValue(newBidValue: BigDecimal, auctionParams: AuctionParams): Boolean = {
+    newBidValue >= requiredNextBid(auctionParams)
   }
 
-  private def requiredNextBid(): BigDecimal = {
-    highestOffer.map(offer => offer.amount + step).getOrElse(initialPrice)
+  private def requiredNextBid(auctionParams: AuctionParams, highestOffer: Option[Bid] = None): BigDecimal = {
+    highestOffer.map(offer => offer.amount + auctionParams.step).getOrElse(auctionParams.initialPrice)
   }
 }
 
@@ -105,6 +115,8 @@ object Timers {
 }
 
 object AuctionCreated {
+
+  case class StartAuction(timers: AuctionTimers, config: AuctionParams)
 
   case object BidTimerExpired
 
@@ -132,14 +144,37 @@ object Bidding {
 
 }
 
+object States {
 
-object Auction {
+  sealed trait AuctionState
 
-  def props(step: BigDecimal,
-            initialPrice: BigDecimal,
-            bidTimer: BidTimer = BidTimer(30 seconds),
-            deleteTimer: DeleteTimer = DeleteTimer(45 seconds)): Props = {
+  case object Idle extends AuctionState
 
-    Props(new Auction(bidTimer, deleteTimer, step, initialPrice))
-  }
+  case object Created extends AuctionState
+
+  case object Ignored extends AuctionState
+
+  case object Activated extends AuctionState
+
+  case object Sold extends AuctionState
+
+}
+
+object Data {
+
+  case class AuctionParams(step: BigDecimal, initialPrice: BigDecimal)
+
+  case class AuctionTimers(bidTimer: BidTimer, deleteTimer: DeleteTimer)
+
+
+  sealed trait AuctionData
+
+  case object Uninitialized extends AuctionData
+
+  case class Config(timers: AuctionTimers, params: AuctionParams) extends AuctionData
+
+  case class AuctionInProgress(config: Config, offers: List[Bid]) extends AuctionData
+
+  case class AuctionEnded(winner: Bid) extends AuctionData
+
 }

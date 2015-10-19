@@ -84,7 +84,6 @@ class Auction extends LoggingFSM[AuctionState, AuctionData] {
     buyer ! BidTooLow(amount, expectedBid)
   }
 
-
   private def notifyPreviousBuyerAboutBidTop(previousHighestOffer: Bid, newOfferValue: BigDecimal, params: AuctionParams): Unit = {
     previousHighestOffer.buyer ! BidTopBySomeoneElse(previousHighestOffer.amount, newOfferValue, params.step)
   }

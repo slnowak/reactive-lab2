@@ -2,6 +2,7 @@ package auction.system
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.{TestKit, TestProbe}
+import auction.system.AuctionCreated.StartAuction
 import auction.system.AuctionSearch.Registered
 import auction.system.Bidding.{AuctionWonBy, NoOffers}
 import auction.system.Data.{AuctionParams, AuctionTimers}
@@ -22,7 +23,7 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
 
   var objectUnderTest: ActorRef = _
   var auctionSearch: TestProbe = _
-  var auction: ActorRef = _
+  var auctionProbe: TestProbe = _
   var auctionTimers: AuctionTimers = _
   var auctionParams: AuctionParams = _
   var auctionTitle: String = _
@@ -34,8 +35,8 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
     auctionSearch = new TestProbe(customActorSystem)
     customActorSystem.actorOf(forwardingActorProps(auctionSearch), "auction-search")
 
-    auction = customActorSystem.actorOf(Props[Auction])
-    objectUnderTest = customActorSystem.actorOf(Seller.props(() => auction))
+    auctionProbe = new TestProbe(customActorSystem)
+    objectUnderTest = customActorSystem.actorOf(Seller.props(() => auctionProbe.ref))
 
     auctionTimers = AuctionTimers(BidTimer(10 seconds), DeleteTimer(5 seconds))
     auctionParams = AuctionParams(BigDecimal(0.5), BigDecimal(10))
@@ -53,42 +54,50 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
       testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams, auctionTitle))
 
       // then
-      testProbe.expectMsg(AuctionCreatedAndRegistered(AuctionRef(auctionTitle, auction)))
+      testProbe.expectMsg(AuctionCreatedAndRegistered(AuctionRef(auctionTitle, auctionProbe.ref)))
     }
 
-    "register new auction in AuctionSearch on request" in new TestKit(system) {
+    "start created auction" in {
       // when
       testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams, auctionTitle))
 
       // then
-      auctionSearch.expectMsg(Register(AuctionRef(auctionTitle, auction)))
+      auctionProbe.expectMsg(StartAuction(auctionTimers, auctionParams))
+    }
+
+    "register new auction in AuctionSearch on request" in {
+      // when
+      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams, auctionTitle))
+
+      // then
+      auctionSearch.expectMsg(Register(AuctionRef(auctionTitle, auctionProbe.ref)))
     }
 
     "unregister existing auction from AuctionSearch if it ends without any offer" in {
       // given
       testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams, auctionTitle))
-      auctionSearch.send(objectUnderTest, Registered(AuctionRef(auctionTitle, auction)))
+      auctionSearch.send(objectUnderTest, Registered(AuctionRef(auctionTitle, auctionProbe.ref)))
 
       // when
-      objectUnderTest.tell(NoOffers, auction)
+      auctionProbe.send(objectUnderTest, NoOffers)
 
       //then
-      auctionSearch.expectMsg(Register(AuctionRef(auctionTitle, auction)))
-      auctionSearch.expectMsg(Unregister(AuctionRef(auctionTitle, auction)))
+      auctionSearch.expectMsg(Register(AuctionRef(auctionTitle, auctionProbe.ref)))
+      auctionSearch.expectMsg(Unregister(AuctionRef(auctionTitle, auctionProbe.ref)))
     }
 
     "unregister existing auction from AuctionSearch if it ends with a winner" in {
       // given
       testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams, auctionTitle))
-      auctionSearch.send(objectUnderTest, Registered(AuctionRef(auctionTitle, auction)))
+      auctionSearch.send(objectUnderTest, Registered(AuctionRef(auctionTitle, auctionProbe.ref)))
 
       // when
       val winner = new TestProbe(customActorSystem)
-      objectUnderTest.tell(AuctionWonBy(winner.ref, BigDecimal(666)), auction)
+      objectUnderTest.tell(AuctionWonBy(winner.ref, BigDecimal(666)), auctionProbe.ref)
 
       //then
-      auctionSearch.expectMsg(Register(AuctionRef(auctionTitle, auction)))
-      auctionSearch.expectMsg(Unregister(AuctionRef(auctionTitle, auction)))
+      auctionSearch.expectMsg(Register(AuctionRef(auctionTitle, auctionProbe.ref)))
+      auctionSearch.expectMsg(Unregister(AuctionRef(auctionTitle, auctionProbe.ref)))
     }
   }
 

@@ -30,7 +30,7 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
     auctionParams = AuctionParams(step = BigDecimal(0.5), initialPrice = BigDecimal(10))
   }
 
-  override protected def afterAll(): Unit = system.shutdown()
+  override protected def afterAll(): Unit = system.terminate()
 
   "An auction" must {
 

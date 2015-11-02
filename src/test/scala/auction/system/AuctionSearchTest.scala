@@ -18,7 +18,7 @@ class AuctionSearchTest extends TestKit(ActorSystem("auction-system")) with Word
     objectUnderTest = system.actorOf(Props[AuctionSearch])
   }
 
-  override protected def afterAll(): Unit = system.shutdown()
+  override protected def afterAll(): Unit = system.terminate()
 
   "An auction search" must {
 

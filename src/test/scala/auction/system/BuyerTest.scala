@@ -24,7 +24,7 @@ class BuyerTest extends TestKit(ActorSystem("auction-system")) with WordSpecLike
     objectUnderTest = system.actorOf(Buyer.props(auctionSearch.ref, moneyToSpend, keyword))
   }
 
-  override protected def afterAll(): Unit = system.shutdown()
+  override protected def afterAll(): Unit = system.terminate()
 
   "Buyer" must {
     "ask for auction list when needed" in {

@@ -1,7 +1,7 @@
 package auction.system
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.{TestKit, TestProbe, TestActors}
 import auction.system.AuctionCreated.StartAuction
 import auction.system.AuctionSearch.Registered
 import auction.system.Bidding.{AuctionWonBy, NoOffers}
@@ -33,7 +33,7 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
     testProbe = new TestProbe(customActorSystem)
 
     auctionSearch = new TestProbe(customActorSystem)
-    customActorSystem.actorOf(forwardingActorProps(auctionSearch), "auction-search")
+    customActorSystem.actorOf(TestActors.forwardActorProps(auctionSearch.ref), "auction-search")
 
     auctionProbe = new TestProbe(customActorSystem)
     objectUnderTest = customActorSystem.actorOf(Seller.props(() => auctionProbe.ref))
@@ -43,9 +43,9 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
     auctionTitle = "auction"
   }
 
-  override protected def afterEach(): Unit = customActorSystem.shutdown()
+  override protected def afterEach(): Unit = customActorSystem.terminate()
 
-  override protected def afterAll(): Unit = system.shutdown()
+  override protected def afterAll(): Unit = system.terminate()
 
   "Seller" must {
 
@@ -99,13 +99,5 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
       auctionSearch.expectMsg(Register(AuctionRef(auctionTitle, auctionProbe.ref)))
       auctionSearch.expectMsg(Unregister(AuctionRef(auctionTitle, auctionProbe.ref)))
     }
-  }
-
-  private def forwardingActorProps(testProbe: TestProbe): Props = {
-    Props(new Actor {
-      override def receive: Receive = {
-        case x => testProbe.ref forward x
-      }
-    })
   }
 }

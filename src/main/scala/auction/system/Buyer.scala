@@ -57,6 +57,8 @@ object Buyer {
 
   case class Bid(amount: BigDecimal)
 
+  case class FindAuctions(keyword: String)
+
   case class WonAuction(amount: BigDecimal, auction: ActorRef)
 
   def props(moneyToSpend: BigDecimal): Props = Props(new Buyer(moneyToSpend))

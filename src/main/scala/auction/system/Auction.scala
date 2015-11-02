@@ -21,40 +21,43 @@ class Auction extends LoggingFSM[AuctionState, AuctionData] {
   startWith(Idle, Uninitialized)
 
   when(Idle) {
-    case Event(StartAuction(timers, params), Uninitialized) => startBidTimerAndBecomeCreated(timers, params)
+    case Event(StartAuction(timers, params), Uninitialized) => startBidTimerAndBecomeCreated(timers, params, sender())
   }
 
   when(Created) {
-    case Event(BidTimerExpired, cfg@Config(timers, _)) =>
+    case Event(BidTimerExpired, cfg@Config(timers, _, seller)) =>
+      notifySellerThereWasNoOffers(seller)
       startDeleteTimer(timers.deleteTimer)
       goto(Ignored) using cfg
 
-    case Event(BuyerOffer(amount), cfg@Config(_, params)) if exceedsInitialValue(amount, params) =>
+    case Event(BuyerOffer(amount), cfg@Config(_, params, _)) if exceedsInitialValue(amount, params) =>
       notifyBuyerThatBidHasBeenAccepted(amount, sender())
       goto(Activated) using AuctionInProgress(cfg, List(Bid(amount, sender())))
 
-    case Event(BuyerOffer(amount), cfg@Config(_, params)) if !exceedsInitialValue(amount, params) =>
+    case Event(BuyerOffer(amount), cfg@Config(_, params, _)) if !exceedsInitialValue(amount, params) =>
       notifyAboutTooLowBid(amount, sender(), requiredNextBid(params))
       stay using cfg
   }
 
   when(Ignored) {
     case Event(DeleteTimerExpired, _) => stop()
-    case Event(Relist, Config(timers, params)) => startBidTimerAndBecomeCreated(timers, params)
+    case Event(Relist, Config(timers, params, seller)) => startBidTimerAndBecomeCreated(timers, params, seller)
   }
 
+
   when(Activated) {
-    case Event(BuyerOffer(amount), AuctionInProgress(cfg@Config(_, params), offers@topOffer :: _)) if exceedsOldBid(amount, topOffer, params) =>
+    case Event(BuyerOffer(amount), AuctionInProgress(cfg@Config(_, params, _), offers@topOffer :: _)) if exceedsOldBid(amount, topOffer, params) =>
       notifyBuyerThatBidHasBeenAccepted(amount, sender())
       notifyPreviousBuyerAboutBidTop(topOffer, amount, params)
       stay using AuctionInProgress(cfg, Bid(amount, sender()) :: offers)
 
-    case Event(BuyerOffer(amount), data@AuctionInProgress(Config(_, params), topOffer :: _)) if !exceedsOldBid(amount, topOffer, params) =>
+    case Event(BuyerOffer(amount), data@AuctionInProgress(Config(_, params, _), topOffer :: _)) if !exceedsOldBid(amount, topOffer, params) =>
       notifyAboutTooLowBid(amount, sender(), requiredNextBid(params, Some(topOffer)))
       stay using data
 
-    case Event(BidTimerExpired, AuctionInProgress(Config(timers, _), winner :: _)) =>
+    case Event(BidTimerExpired, AuctionInProgress(Config(timers, _, seller), winner :: _)) =>
       startDeleteTimer(timers.deleteTimer)
+      notifySellerAboutWinner(seller, winner)
       notifyWinner(winner)
       goto(Sold) using AuctionEnded(winner)
   }
@@ -63,9 +66,17 @@ class Auction extends LoggingFSM[AuctionState, AuctionData] {
     case Event(DeleteTimerExpired, _) => stop()
   }
 
-  private def startBidTimerAndBecomeCreated(timers: AuctionTimers, params: AuctionParams): Auction.this.State = {
+  private def notifySellerThereWasNoOffers(seller: ActorRef): Unit = {
+    seller ! NoOffers
+  }
+
+  private def notifySellerAboutWinner(seller: ActorRef, winner: Bid) = {
+    seller ! AuctionWonBy(winner.buyer, winner.amount)
+  }
+
+  private def startBidTimerAndBecomeCreated(timers: AuctionTimers, params: AuctionParams, seller: ActorRef): Auction.this.State = {
     startBidTimer(timers.bidTimer)
-    goto(Created) using Config(timers, params)
+    goto(Created) using Config(timers, params, seller)
   }
 
   private def startBidTimer(bidTimer: BidTimer): Unit = system.scheduler.scheduleOnce(bidTimer.duration, self, BidTimerExpired)
@@ -141,6 +152,10 @@ object Bidding {
 
   case class AuctionWon(winningOffer: BigDecimal)
 
+  case class AuctionWonBy(winner: ActorRef, winningOffer: BigDecimal)
+
+  case object NoOffers
+
 }
 
 object States {
@@ -170,7 +185,7 @@ object Data {
 
   case object Uninitialized extends AuctionData
 
-  case class Config(timers: AuctionTimers, params: AuctionParams) extends AuctionData
+  case class Config(timers: AuctionTimers, params: AuctionParams, seller: ActorRef) extends AuctionData
 
   case class AuctionInProgress(config: Config, offers: List[Bid]) extends AuctionData
 

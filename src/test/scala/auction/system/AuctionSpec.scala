@@ -7,14 +7,14 @@ import auction.system.Bidding._
 import auction.system.Buyer.Bid
 import auction.system.Data.{AuctionParams, AuctionTimers}
 import auction.system.Timers.{BidTimer, DeleteTimer}
-import org.scalatest.{BeforeAndAfterEach, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, WordSpecLike}
 
 import scala.concurrent.duration._
 
 /**
  * Created by novy on 02.11.15.
  */
-class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLike with BeforeAndAfterEach with ImplicitSender {
+class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLike with BeforeAndAfterEach with BeforeAndAfterAll with ImplicitSender {
 
   var objectUnderTest: ActorRef = _
   var seller: TestProbe = _
@@ -30,9 +30,10 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
     auctionParams = AuctionParams(step = BigDecimal(0.5), initialPrice = BigDecimal(10))
   }
 
+  override protected def afterAll(): Unit = system.shutdown()
+
   "An auction" must {
 
-    // todo: initial offer - extract to separate test case
     "notify buyer the bid was accepted if it exceeds initial price" in {
       // given:
       objectUnderTest.tell(StartAuction(auctionTimers, auctionParams), seller.ref)
@@ -56,7 +57,6 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
       buyer.expectMsg(BidTooLow(currentAmount = BigDecimal(9.99), requiredAmount = BigDecimal(10)))
     }
 
-    // todo: auction in progress - separate test case
     "notify buyer his offer was accepted if exceeds previous offer" in {
       // given
       objectUnderTest.tell(StartAuction(auctionTimers, auctionParams), seller.ref)
@@ -108,7 +108,6 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
       buyer.expectMsg(BidTopBySomeoneElse(previousOffer, offeredBySomeoneElse, auctionParams.step))
     }
 
-    // todo: anothertestcase??
     "notify winner when auction ends" in {
       // given
       objectUnderTest.tell(StartAuction(auctionTimers, auctionParams), seller.ref)
@@ -143,7 +142,7 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
       seller.expectMsg(AuctionWonBy(buyer.ref, winningOffer))
     }
 
-    "notify seller there was no offers" in {
+    "notify seller there were no offers" in {
       // given
       objectUnderTest.tell(StartAuction(auctionTimers, auctionParams), seller.ref)
 

@@ -5,18 +5,20 @@ import akka.testkit.{ImplicitSender, TestKit}
 import auction.system.AuctionSearch.{QueryResult, Registered, Unregistered}
 import auction.system.Buyer.FindAuctions
 import auction.system.Seller.{AuctionRef, Register, Unregister}
-import org.scalatest.{BeforeAndAfterEach, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, WordSpecLike}
 
 /**
  * Created by novy on 02.11.15.
  */
-class AuctionSearchTest extends TestKit(ActorSystem("auction-system")) with WordSpecLike with BeforeAndAfterEach with ImplicitSender {
+class AuctionSearchTest extends TestKit(ActorSystem("auction-system")) with WordSpecLike with BeforeAndAfterEach with BeforeAndAfterAll with ImplicitSender {
 
   var objectUnderTest: ActorRef = _
 
   override protected def beforeEach(): Unit = {
     objectUnderTest = system.actorOf(Props[AuctionSearch])
   }
+
+  override protected def afterAll(): Unit = system.shutdown()
 
   "An auction search" must {
 
@@ -59,6 +61,14 @@ class AuctionSearchTest extends TestKit(ActorSystem("auction-system")) with Word
 
       // then
       expectMsg(QueryResult("anal", Set(matchingAuction, anotherMatching)))
+    }
+
+    "return QueryResult with empty set if there's no match" in {
+      // when
+      objectUnderTest ! FindAuctions("foo")
+
+      // then
+      expectMsg(QueryResult("foo", Set()))
     }
   }
 

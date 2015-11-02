@@ -17,7 +17,7 @@ class Seller(auctionFactory: () => ActorRef) extends Actor {
     case CreateAuction(timers, params, title) => register(title, timers, params, sender())
     case Registered(auction) => markAsPending(auction)
     case Unregistered(auction) => removeFromPending(auction)
-    case AuctionWonBy => unregister(sender())
+    case AuctionWonBy(_, _) => unregister(sender())
     case NoOffers => unregister(sender())
   }
 

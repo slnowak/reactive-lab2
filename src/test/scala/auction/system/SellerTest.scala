@@ -50,7 +50,7 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
 
     "respond to create auction request" in {
       // when
-      objectUnderTest.tell(CreateAuction(auctionTimers, auctionParams, auctionTitle), testProbe.ref)
+      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams, auctionTitle))
 
       // then
       testProbe.expectMsg(AuctionCreatedAndRegistered(AuctionRef(auctionTitle, auction)))
@@ -58,7 +58,7 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
 
     "register new auction in AuctionSearch on request" in new TestKit(system) {
       // when
-      objectUnderTest.tell(CreateAuction(auctionTimers, auctionParams, auctionTitle), testProbe.ref)
+      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams, auctionTitle))
 
       // then
       auctionSearch.expectMsg(Register(AuctionRef(auctionTitle, auction)))
@@ -66,8 +66,8 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
 
     "unregister existing auction from AuctionSearch if it ends without any offer" in {
       // given
-      objectUnderTest.tell(CreateAuction(auctionTimers, auctionParams, auctionTitle), testProbe.ref)
-      objectUnderTest.tell(Registered(AuctionRef(auctionTitle, auction)), auctionSearch.ref)
+      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams, auctionTitle))
+      auctionSearch.send(objectUnderTest, Registered(AuctionRef(auctionTitle, auction)))
 
       // when
       objectUnderTest.tell(NoOffers, auction)
@@ -79,8 +79,8 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
 
     "unregister existing auction from AuctionSearch if it ends with a winner" in {
       // given
-      objectUnderTest.tell(CreateAuction(auctionTimers, auctionParams, auctionTitle), testProbe.ref)
-      objectUnderTest.tell(Registered(AuctionRef(auctionTitle, auction)), auctionSearch.ref)
+      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams, auctionTitle))
+      auctionSearch.send(objectUnderTest, Registered(AuctionRef(auctionTitle, auction)))
 
       // when
       val winner = new TestProbe(customActorSystem)

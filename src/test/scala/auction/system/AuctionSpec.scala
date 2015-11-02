@@ -36,11 +36,11 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
 
     "notify buyer the bid was accepted if it exceeds initial price" in {
       // given:
-      objectUnderTest.tell(StartAuction(auctionTimers, auctionParams), seller.ref)
+      seller.send(objectUnderTest, StartAuction(auctionTimers, auctionParams))
 
       // when
       val newOffer: BigDecimal = BigDecimal(10)
-      objectUnderTest.tell(Bid(newOffer), buyer.ref)
+      buyer.send(objectUnderTest, Bid(newOffer))
 
       // then
       buyer.expectMsg(BidAccepted(newOffer))
@@ -48,10 +48,10 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
 
     "notify buyer the bid was too low and provide with required price" in {
       // given:
-      objectUnderTest.tell(StartAuction(auctionTimers, auctionParams), seller.ref)
+      seller.send(objectUnderTest, StartAuction(auctionTimers, auctionParams))
 
       // when
-      objectUnderTest.tell(Bid(BigDecimal(9.99)), buyer.ref)
+      buyer.send(objectUnderTest, Bid(BigDecimal(9.99)))
 
       // then
       buyer.expectMsg(BidTooLow(currentAmount = BigDecimal(9.99), requiredAmount = BigDecimal(10)))
@@ -59,15 +59,15 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
 
     "notify buyer his offer was accepted if exceeds previous offer" in {
       // given
-      objectUnderTest.tell(StartAuction(auctionTimers, auctionParams), seller.ref)
+      seller.send(objectUnderTest, StartAuction(auctionTimers, auctionParams))
 
       val anotherSender = TestProbe()
       val previousHighestOffer = BigDecimal(10)
-      objectUnderTest.tell(msg = Bid(previousHighestOffer), sender = anotherSender.ref)
+      anotherSender.send(objectUnderTest, Bid(previousHighestOffer))
 
       // when
       val newOffer = previousHighestOffer + auctionParams.step
-      objectUnderTest.tell(Bid(newOffer), buyer.ref)
+      buyer.send(objectUnderTest, Bid(newOffer))
 
       // then
       buyer.expectMsg(BidAccepted(newOffer))
@@ -75,15 +75,15 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
 
     "notify buyer his offer was too low and provide with lowest possible amount" in {
       // given
-      objectUnderTest.tell(StartAuction(auctionTimers, auctionParams), seller.ref)
+      seller.send(objectUnderTest, StartAuction(auctionTimers, auctionParams))
 
       val anotherBuyer = TestProbe()
       val previousHighestOffer = BigDecimal(10)
-      objectUnderTest.tell(msg = Bid(previousHighestOffer), sender = anotherBuyer.ref)
+      anotherBuyer.send(objectUnderTest, Bid(previousHighestOffer))
 
       // when
       val tooLowOffer = previousHighestOffer
-      objectUnderTest.tell(Bid(tooLowOffer), buyer.ref)
+      buyer.send(objectUnderTest, Bid(tooLowOffer))
 
       // then
       buyer.expectMsg(BidTooLow(
@@ -94,14 +94,14 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
 
     "notify buyer if his bid was top by someone else" in {
       // given
-      objectUnderTest.tell(StartAuction(auctionTimers, auctionParams), seller.ref)
+      seller.send(objectUnderTest, StartAuction(auctionTimers, auctionParams))
       val previousOffer = BigDecimal(10)
-      objectUnderTest.tell(Bid(previousOffer), buyer.ref)
+      buyer.send(objectUnderTest, Bid(previousOffer))
 
       // when
       val offeredBySomeoneElse = BigDecimal(666)
       val someoneElse = TestProbe()
-      objectUnderTest.tell(Bid(offeredBySomeoneElse), someoneElse.ref)
+      someoneElse.send(objectUnderTest, Bid(offeredBySomeoneElse))
 
       // then
       buyer.expectMsg(BidAccepted(previousOffer))
@@ -110,12 +110,12 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
 
     "notify winner when auction ends" in {
       // given
-      objectUnderTest.tell(StartAuction(auctionTimers, auctionParams), seller.ref)
+      seller.send(objectUnderTest, StartAuction(auctionTimers, auctionParams))
 
       val anotherBuyer = TestProbe()
-      objectUnderTest.tell(Bid(BigDecimal(150)), buyer.ref)
-      objectUnderTest.tell(Bid(BigDecimal(151)), anotherBuyer.ref)
-      objectUnderTest.tell(Bid(BigDecimal(666)), buyer.ref)
+      buyer.send(objectUnderTest, Bid(BigDecimal(150)))
+      anotherBuyer.send(objectUnderTest, Bid(BigDecimal(151)))
+      buyer.send(objectUnderTest, Bid(BigDecimal(666)))
 
       // when
       objectUnderTest ! BidTimerExpired
@@ -130,10 +130,10 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
 
     "notify seller about winner" in {
       // given
-      objectUnderTest.tell(StartAuction(auctionTimers, auctionParams), seller.ref)
+      seller.send(objectUnderTest, StartAuction(auctionTimers, auctionParams))
 
       val winningOffer = BigDecimal(666)
-      objectUnderTest.tell(Bid(winningOffer), buyer.ref)
+      buyer.send(objectUnderTest, Bid(winningOffer))
 
       // when
       objectUnderTest ! BidTimerExpired
@@ -144,7 +144,7 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
 
     "notify seller there were no offers" in {
       // given
-      objectUnderTest.tell(StartAuction(auctionTimers, auctionParams), seller.ref)
+      seller.send(objectUnderTest, StartAuction(auctionTimers, auctionParams))
 
       // when
       objectUnderTest ! BidTimerExpired

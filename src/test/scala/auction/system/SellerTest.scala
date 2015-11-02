@@ -67,7 +67,7 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
     "unregister existing auction from AuctionSearch if it ends without any offer" in {
       // given
       objectUnderTest.tell(CreateAuction(auctionTimers, auctionParams, auctionTitle), testProbe.ref)
-      objectUnderTest.tell(Registered(AuctionRef(auctionTitle, auction)), testProbe.ref)
+      objectUnderTest.tell(Registered(AuctionRef(auctionTitle, auction)), auctionSearch.ref)
 
       // when
       objectUnderTest.tell(NoOffers, auction)
@@ -80,7 +80,7 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
     "unregister existing auction from AuctionSearch if it ends with a winner" in {
       // given
       objectUnderTest.tell(CreateAuction(auctionTimers, auctionParams, auctionTitle), testProbe.ref)
-      objectUnderTest.tell(Registered(AuctionRef(auctionTitle, auction)), testProbe.ref)
+      objectUnderTest.tell(Registered(AuctionRef(auctionTitle, auction)), auctionSearch.ref)
 
       // when
       val winner = new TestProbe(customActorSystem)

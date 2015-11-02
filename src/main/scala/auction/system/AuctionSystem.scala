@@ -41,18 +41,18 @@ class AuctionCoordinator extends Actor {
     auction1 ! StartAuction(auction1Timers, auction1Params)
     auction2 ! StartAuction(auction2Timers, auction2Params)
 
-    val buyer1: ActorRef = context.actorOf(Buyer.props(moneyToSpend = BigDecimal(20)), "buyer1")
-    val buyer2: ActorRef = context.actorOf(Buyer.props(moneyToSpend = BigDecimal(20)), "buyer2")
-    val buyer3: ActorRef = context.actorOf(Buyer.props(moneyToSpend = BigDecimal(40)), "buyer3")
-
-    buyer1 ! StartBidding(amount = BigDecimal(0), auction = auction1)
-    buyer1 ! StartBidding(amount = BigDecimal(1), auction = auction2)
-
-    buyer2 ! StartBidding(amount = BigDecimal(1), auction = auction1)
-    buyer2 ! StartBidding(amount = BigDecimal(0), auction = auction2)
-
-    buyer3 ! StartBidding(amount = BigDecimal(5), auction = auction1)
-    buyer3 ! StartBidding(amount = BigDecimal(1), auction = auction2)
+//    val buyer1: ActorRef = context.actorOf(Buyer.props(moneyToSpend = BigDecimal(20)), "buyer1")
+//    val buyer2: ActorRef = context.actorOf(Buyer.props(moneyToSpend = BigDecimal(20)), "buyer2")
+//    val buyer3: ActorRef = context.actorOf(Buyer.props(moneyToSpend = BigDecimal(40)), "buyer3")
+//
+//    buyer1 ! StartBidding(amount = BigDecimal(0), auction = auction1)
+//    buyer1 ! StartBidding(amount = BigDecimal(1), auction = auction2)
+//
+//    buyer2 ! StartBidding(amount = BigDecimal(1), auction = auction1)
+//    buyer2 ! StartBidding(amount = BigDecimal(0), auction = auction2)
+//
+//    buyer3 ! StartBidding(amount = BigDecimal(5), auction = auction1)
+//    buyer3 ! StartBidding(amount = BigDecimal(1), auction = auction2)
   }
 }
 

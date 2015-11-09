@@ -4,17 +4,14 @@ import java.util.UUID
 
 import akka.actor._
 import akka.persistence.fsm.PersistentFSM
-import akka.persistence.fsm.PersistentFSM.FSMState
 import auction.system.AuctionCreatedMoveMe.{BidTimerExpired, StartAuction}
 import auction.system.AuctionEvents._
 import auction.system.AuctionIgnored.{DeleteTimerExpired, Relist}
+import auction.system.AuctionStates._
 import auction.system.Bidding._
 import auction.system.Buyer.{Bid => BuyerOffer}
 import auction.system.Data._
-import auction.system.States._
-import auction.system.Timers.{BidTimer, DeleteTimer}
 
-import scala.concurrent.duration._
 import scala.reflect._
 
 /**
@@ -135,11 +132,7 @@ class Auction(auctionId: String) extends PersistentFSM[AuctionState, AuctionData
 
 object Timers {
 
-  case class BidTimer(duration: FiniteDuration)
-
   case object StartBidTimer
-
-  case class DeleteTimer(duration: FiniteDuration)
 
   case object StartDeleteTimer
 
@@ -163,8 +156,6 @@ object AuctionIgnored {
 
 object Bidding {
 
-  case class Bid(amount: BigDecimal, buyer: ActorRef)
-
   case class BidAccepted(amount: BigDecimal)
 
   case class BidTooLow(currentAmount: BigDecimal, requiredAmount: BigDecimal)
@@ -179,66 +170,6 @@ object Bidding {
 
 }
 
-object States {
-
-  sealed trait AuctionState extends FSMState
-
-  case object Idle extends AuctionState {
-    override def identifier: String = "idle"
-  }
-
-  case object Created extends AuctionState {
-    override def identifier: String = "created"
-  }
-
-  case object Ignored extends AuctionState {
-    override def identifier: String = "ignored"
-  }
-
-  case object Activated extends AuctionState {
-    override def identifier: String = "activated"
-  }
-
-  case object Sold extends AuctionState {
-    override def identifier: String = "sold"
-  }
-
-}
-
-object Data {
-
-  case class AuctionParams(step: BigDecimal, initialPrice: BigDecimal)
-
-  case class AuctionTimers(bidTimer: BidTimer, deleteTimer: DeleteTimer)
-
-
-  sealed trait AuctionData
-
-  case object Uninitialized extends AuctionData
-
-  case class Config(timers: AuctionTimers, params: AuctionParams, seller: ActorRef) extends AuctionData
-
-  case class ConfigWithOffers(config: Config, offers: List[Bid]) extends AuctionData
-
-  case class AuctionWinner(winner: Bid) extends AuctionData
-
-}
-
 object Auction {
   def props(auctionId: String = UUID.randomUUID().toString): Props = Props(new Auction(auctionId))
-}
-
-// todo extract
-object AuctionEvents {
-
-  sealed trait AuctionEvent
-
-  case class AuctionCreated(timers: AuctionTimers, params: AuctionParams, seller: ActorRef) extends AuctionEvent
-
-  case class AuctionActivated(config: Config, initialOffer: Bid) extends AuctionEvent
-
-  case class NewHighestOfferArrived(config: Config, newOffer: Bid) extends AuctionEvent
-
-  case class AuctionEnded(winner: Bid) extends AuctionEvent
-
 }

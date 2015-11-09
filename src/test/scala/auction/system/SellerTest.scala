@@ -1,13 +1,12 @@
 package auction.system
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.testkit.{TestKit, TestProbe, TestActors}
+import akka.actor.{ActorRef, ActorSystem}
+import akka.testkit.{TestActors, TestKit, TestProbe}
 import auction.system.AuctionCreatedMoveMe.StartAuction
 import auction.system.AuctionSearch.Registered
 import auction.system.Bidding.{AuctionWonBy, NoOffers}
-import auction.system.Data.{AuctionParams, AuctionTimers}
+import auction.system.Data.{AuctionParams, AuctionTimers, BidTimer, DeleteTimer}
 import auction.system.Seller._
-import auction.system.Timers.{BidTimer, DeleteTimer}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, WordSpecLike}
 
 import scala.concurrent.duration._

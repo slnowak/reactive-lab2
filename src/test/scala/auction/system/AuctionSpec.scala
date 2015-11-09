@@ -1,15 +1,12 @@
 package auction.system
 
-import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.persistence.journal.JournalSpec
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import auction.system.AuctionCreatedMoveMe.{BidTimerExpired, StartAuction}
 import auction.system.Bidding._
 import auction.system.Buyer.Bid
-import auction.system.Data.{AuctionParams, AuctionTimers}
-import auction.system.Timers.{BidTimer, DeleteTimer}
-import com.typesafe.config.ConfigFactory
-import org.scalatest.{Tag, BeforeAndAfterAll, BeforeAndAfterEach, WordSpecLike}
+import auction.system.Data.{AuctionParams, AuctionTimers, BidTimer, DeleteTimer}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, WordSpecLike}
 
 import scala.concurrent.duration._
 

@@ -4,9 +4,8 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.event.LoggingReceive
 import auction.system.AuctionCoordinator.Start
 import auction.system.Buyer.StartBidding
-import auction.system.Data.{AuctionParams, AuctionTimers}
+import auction.system.Data.{AuctionParams, AuctionTimers, BidTimer, DeleteTimer}
 import auction.system.Seller.CreateAuction
-import auction.system.Timers.{BidTimer, DeleteTimer}
 
 import scala.concurrent.duration._
 

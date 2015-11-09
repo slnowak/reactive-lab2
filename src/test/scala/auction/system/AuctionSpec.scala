@@ -1,13 +1,15 @@
 package auction.system
 
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.persistence.journal.JournalSpec
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
-import auction.system.AuctionCreated.{BidTimerExpired, StartAuction}
+import auction.system.AuctionCreatedMoveMe.{BidTimerExpired, StartAuction}
 import auction.system.Bidding._
 import auction.system.Buyer.Bid
 import auction.system.Data.{AuctionParams, AuctionTimers}
 import auction.system.Timers.{BidTimer, DeleteTimer}
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, WordSpecLike}
+import com.typesafe.config.ConfigFactory
+import org.scalatest.{Tag, BeforeAndAfterAll, BeforeAndAfterEach, WordSpecLike}
 
 import scala.concurrent.duration._
 
@@ -23,14 +25,18 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
   var auctionParams: AuctionParams = _
 
   override protected def beforeEach(): Unit = {
-    objectUnderTest = system.actorOf(Props[Auction])
+    objectUnderTest = system.actorOf(Auction.props())
     seller = TestProbe()
     buyer = TestProbe()
     auctionTimers = AuctionTimers(BidTimer(5 seconds), DeleteTimer(10 seconds))
     auctionParams = AuctionParams(step = BigDecimal(0.5), initialPrice = BigDecimal(10))
+    super.beforeEach()
   }
 
-  override protected def afterAll(): Unit = system.terminate()
+  override protected def afterAll(): Unit = {
+    super.afterAll()
+    system.terminate()
+  }
 
   "An auction" must {
 

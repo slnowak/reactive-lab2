@@ -2,7 +2,7 @@ package auction.system
 
 import akka.actor.{Props, Actor, ActorRef}
 import auction.system.AuctionCoordinator.Start
-import auction.system.AuctionCreated.StartAuction
+import auction.system.AuctionCreatedMoveMe.StartAuction
 import auction.system.AuctionSearch.{Registered, Unregistered}
 import auction.system.Bidding.{AuctionWonBy, NoOffers}
 import auction.system.Data.{AuctionParams, AuctionTimers}

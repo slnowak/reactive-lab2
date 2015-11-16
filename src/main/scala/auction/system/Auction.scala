@@ -1,5 +1,6 @@
 package auction.system
 
+import java.time.LocalDateTime
 import java.util.UUID
 
 import akka.actor._
@@ -15,8 +16,8 @@ import auction.system.Data._
 import scala.reflect._
 
 /**
- * Created by novy on 18.10.15.
- */
+  * Created by novy on 18.10.15.
+  */
 class Auction(auctionId: String) extends PersistentFSM[AuctionState, AuctionData, AuctionEvent] {
 
   import context._
@@ -28,44 +29,48 @@ class Auction(auctionId: String) extends PersistentFSM[AuctionState, AuctionData
   startWith(Idle, Uninitialized)
 
   when(Idle) {
-    case Event(StartAuction(timers, params), Uninitialized) => startBidTimerAndBecomeCreated(timers, params, sender())
+    case Event(StartAuction(timers, params), Uninitialized) =>
+      startBidTimer(timers.bidTimer)
+      goto(Created) applying AuctionCreatedEvent(timers, params, sender())
   }
 
   when(Created) {
-    //    case Event(BidTimerExpired, cfg@Config(timers, _, seller)) =>
-    //      notifySellerThereWasNoOffers(seller)
-    //      startDeleteTimer(timers.deleteTimer)
-    //      goto(Ignored) using cfg
+    case Event(BidTimerExpired, cfg@WithConfig(timers, _, seller)) =>
+      notifySellerThereWasNoOffers(seller)
+      startDeleteTimer(timers.deleteTimer)
+      goto(Ignored) applying BidTimerExpiredEvent
 
-    case Event(BuyerOffer(amount), cfg@Config(_, params, _)) if exceedsInitialValue(amount, params) =>
+    case Event(BuyerOffer(amount), cfg@WithConfig(_, params, _)) if exceedsInitialValue(amount, params) =>
       notifyBuyerThatBidHasBeenAccepted(amount, sender())
-      goto(Activated) applying AuctionActivated(cfg, Bid(amount, sender()))
+      goto(Activated) applying AuctionActivatedEvent(cfg, Bid(amount, sender()))
 
-    case Event(BuyerOffer(amount), cfg@Config(_, params, _)) if !exceedsInitialValue(amount, params) =>
+    case Event(BuyerOffer(amount), cfg@WithConfig(_, params, _)) if !exceedsInitialValue(amount, params) =>
       notifyAboutTooLowBid(amount, sender(), requiredNextBid(params))
       stay()
   }
 
   when(Ignored) {
     case Event(DeleteTimerExpired, _) => stop()
-    case Event(Relist, Config(timers, params, seller)) => startBidTimerAndBecomeCreated(timers, params, seller)
+    case Event(Relist(relistAt), WithConfig(timers, AuctionParams(step, initialPrice, _), seller)) =>
+      startBidTimer(timers.bidTimer)
+      goto(Created) applying AuctionCreatedEvent(timers, AuctionParams(step, initialPrice, relistAt), sender())
   }
 
   when(Activated) {
-    case Event(BuyerOffer(amount), ConfigWithOffers(cfg@Config(_, params, _), offers@topOffer :: _)) if exceedsOldBid(amount, topOffer, params) =>
+    case Event(BuyerOffer(amount), WithConfigAndOffers(cfg@WithConfig(_, params, _), offers@topOffer :: _)) if exceedsOldBid(amount, topOffer, params) =>
       notifyBuyerThatBidHasBeenAccepted(amount, sender())
       notifyPreviousBuyerAboutBidTop(topOffer, amount, params)
-      stay applying NewHighestOfferArrived(cfg, Bid(amount, sender()))
+      stay applying NewHighestOfferArrivedEvent(cfg, Bid(amount, sender()))
 
-    case Event(BuyerOffer(amount), data@ConfigWithOffers(Config(_, params, _), topOffer :: _)) if !exceedsOldBid(amount, topOffer, params) =>
+    case Event(BuyerOffer(amount), data@WithConfigAndOffers(WithConfig(_, params, _), topOffer :: _)) if !exceedsOldBid(amount, topOffer, params) =>
       notifyAboutTooLowBid(amount, sender(), requiredNextBid(params, Some(topOffer)))
       stay()
 
-    case Event(BidTimerExpired, ConfigWithOffers(Config(timers, _, seller), winner :: _)) =>
+    case Event(BidTimerExpired, WithConfigAndOffers(cfg@WithConfig(timers, _, seller), winner :: _)) =>
       startDeleteTimer(timers.deleteTimer)
       notifySellerAboutWinner(seller, winner)
       notifyWinner(winner)
-      goto(Sold) applying AuctionEnded(winner)
+      goto(Sold) applying AuctionEndedEvent(cfg, winner)
   }
 
   when(Sold) {
@@ -74,15 +79,38 @@ class Auction(auctionId: String) extends PersistentFSM[AuctionState, AuctionData
 
   override def applyEvent(domainEvent: AuctionEvent, currentData: AuctionData): AuctionData = {
     domainEvent match {
-      case AuctionCreated(timers, params, seller) => Config(timers, params, seller)
-      case AuctionActivated(cfg, initialOffer) => ConfigWithOffers(cfg, List(initialOffer))
-      case NewHighestOfferArrived(cfg, newOffer) =>
-        val offers = currentData.asInstanceOf[ConfigWithOffers].offers
-        ConfigWithOffers(cfg, newOffer :: offers)
-      case AuctionEnded(winner) => AuctionWinner(winner)
+      case AuctionCreatedEvent(timers, params, seller) => WithConfig(timers, params, seller)
+      case BidTimerExpiredEvent => currentData
+      case AuctionActivatedEvent(cfg, initialOffer) => WithConfigAndOffers(cfg, List(initialOffer))
+      case NewHighestOfferArrivedEvent(cfg, newOffer) =>
+        val offers = currentData.asInstanceOf[WithConfigAndOffers].offers
+        WithConfigAndOffers(cfg, newOffer :: offers)
+      case AuctionEndedEvent(cfg, winner) => WithAuctionWinner(cfg, winner)
     }
   }
 
+  override def onRecoveryCompleted(): Unit = {
+    super.onRecoveryCompleted()
+
+    val now: LocalDateTime = LocalDateTime.now()
+    stateName match {
+      case _: AlreadyCrated => restoreTimers(now)
+      case _ =>
+    }
+  }
+
+  private def restoreTimers(now: LocalDateTime): Unit = {
+    stateData match {
+      case Uninitialized =>
+      case alreadyInitialized: Initialized =>
+        val timers: AuctionTimers = alreadyInitialized.timers
+        val bidTimerExpired: Boolean =
+          now.isAfter(alreadyInitialized.startedAt.plusNanos(timers.bidTimer.duration.toNanos))
+
+        // todo shouldn't we subtract expired time?
+        if (bidTimerExpired) startDeleteTimer(timers.deleteTimer) else startBidTimer(timers.bidTimer)
+    }
+  }
 
   private def notifySellerThereWasNoOffers(seller: ActorRef): Unit = {
     seller ! NoOffers
@@ -90,11 +118,6 @@ class Auction(auctionId: String) extends PersistentFSM[AuctionState, AuctionData
 
   private def notifySellerAboutWinner(seller: ActorRef, winner: Bid) = {
     seller ! AuctionWonBy(winner.buyer, winner.amount)
-  }
-
-  private def startBidTimerAndBecomeCreated(timers: AuctionTimers, params: AuctionParams, seller: ActorRef) = {
-    startBidTimer(timers.bidTimer)
-    goto(Created) applying AuctionCreated(timers, params, seller)
   }
 
   private def startBidTimer(bidTimer: BidTimer): Unit = system.scheduler.scheduleOnce(bidTimer.duration, self, BidTimerExpired)
@@ -130,14 +153,6 @@ class Auction(auctionId: String) extends PersistentFSM[AuctionState, AuctionData
   }
 }
 
-object Timers {
-
-  case object StartBidTimer
-
-  case object StartDeleteTimer
-
-}
-
 object AuctionCreatedMoveMe {
 
   case class StartAuction(timers: AuctionTimers, config: AuctionParams)
@@ -150,7 +165,7 @@ object AuctionIgnored {
 
   case object DeleteTimerExpired
 
-  case object Relist
+  case class Relist(relistAt: LocalDateTime = LocalDateTime.now())
 
 }
 

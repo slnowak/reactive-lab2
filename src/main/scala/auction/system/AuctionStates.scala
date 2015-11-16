@@ -9,23 +9,25 @@ object AuctionStates {
 
   sealed trait AuctionState extends FSMState
 
+  sealed trait AlreadyCrated extends AuctionState
+
   case object Idle extends AuctionState {
     override def identifier: String = "idle"
   }
 
-  case object Created extends AuctionState {
+  case object Created extends AlreadyCrated {
     override def identifier: String = "created"
   }
 
-  case object Ignored extends AuctionState {
+  case object Ignored extends AlreadyCrated {
     override def identifier: String = "ignored"
   }
 
-  case object Activated extends AuctionState {
+  case object Activated extends AlreadyCrated {
     override def identifier: String = "activated"
   }
 
-  case object Sold extends AuctionState {
+  case object Sold extends AlreadyCrated {
     override def identifier: String = "sold"
   }
 

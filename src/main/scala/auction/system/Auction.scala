@@ -36,7 +36,7 @@ class Auction(auctionId: String) extends PersistentFSM[AuctionState, AuctionData
 
   when(Created) {
     case Event(BidTimerExpired, cfg@WithConfig(timers, _, seller)) =>
-      notifySellerThereWasNoOffers(seller)
+      notifySellerThereWereNoOffers(seller)
       startDeleteTimer(timers.deleteTimer)
       goto(Ignored) applying BidTimerExpiredEvent
 
@@ -112,7 +112,7 @@ class Auction(auctionId: String) extends PersistentFSM[AuctionState, AuctionData
     }
   }
 
-  private def notifySellerThereWasNoOffers(seller: ActorRef): Unit = {
+  private def notifySellerThereWereNoOffers(seller: ActorRef): Unit = {
     seller ! NoOffers
   }
 

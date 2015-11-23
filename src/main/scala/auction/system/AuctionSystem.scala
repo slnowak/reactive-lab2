@@ -6,9 +6,10 @@ import auction.system.AuctionCoordinator.Start
 import auction.system.Buyer.StartBidding
 import auction.system.Data.{AuctionParams, AuctionTimers, BidTimer, DeleteTimer}
 import auction.system.Seller.CreateAuction
-import auction.system.notifications.Notifier
+import auction.system.notifications.{AuctionPublisher, Notifier}
 import com.typesafe.config.{Config, ConfigFactory}
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 
@@ -17,13 +18,14 @@ import scala.concurrent.duration._
   */
 object AuctionSystem extends App {
   val config: Config = ConfigFactory.load()
-  val system: ActorSystem = ActorSystem("auction-system", config.getConfig("auctionsystem").withFallback(config))
 
-  val coordinator: ActorRef = system.actorOf(Props[AuctionCoordinator])
-  val auctionSearch: ActorRef = system.actorOf(Props[AuctionSearch], "auction-search")
+  val auctionPublisherSystem: ActorSystem = ActorSystem("auction-publisher", config.getConfig("auction-publisher").withFallback(config))
+  auctionPublisherSystem.actorOf(Props[AuctionPublisher], "auction-publisher")
+
+  val auctionSystem: ActorSystem = ActorSystem("auction-system", config.getConfig("auction-system").withFallback(config))
+  val coordinator: ActorRef = auctionSystem.actorOf(Props[AuctionCoordinator])
+  val auctionSearch: ActorRef = auctionSystem.actorOf(Props[AuctionSearch], "auction-search")
   coordinator ! Start(auctionSearch)
-
-  system.awaitTermination()
 }
 
 class AuctionCoordinator extends Actor {
@@ -56,7 +58,7 @@ class AuctionCoordinator extends Actor {
     buyer2 ! StartBidding(BigDecimal(2))
   }
 
-  private def remotePublisher(): ActorSelection = context.actorSelection("akka.tcp://Reactive5@127.0.0.1:2552/user/auctionPublisher")
+  private def remotePublisher(): ActorSelection = context.actorSelection("akka.tcp://auction-publisher@127.0.0.1:2553/user/auction-publisher")
 
 }
 

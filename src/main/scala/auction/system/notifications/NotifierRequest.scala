@@ -6,8 +6,8 @@ import auction.system.notifications.Notifier.{Notification, NotificationPayload}
 import auction.system.notifications.NotifierRequest.SuccessfullyDeliveredNotification
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.Try
 
 /**
   * Created by novy on 23.11.15.
@@ -16,6 +16,7 @@ class NotifierRequest(notificationToSend: Notification) extends Actor with Actor
 
   override def receive: Receive = {
     case ReceivedNotification => notifyParentAboutSuccessfulDeliveryAndKillYourself()
+    case exception: Throwable => throw exception
   }
 
   override def preStart(): Unit = {
@@ -26,15 +27,17 @@ class NotifierRequest(notificationToSend: Notification) extends Actor with Actor
   def tryToSendNotification(): Unit = {
     val actorSelection: ActorSelection = notificationToSend.target
 
-    actorSelection
-      .resolveOne(10 seconds)
-      .onComplete(sendNotificationOrThrowException)
+    val eventualActorRef: Future[ActorRef] = actorSelection.resolveOne(10 seconds)
+    eventualActorRef.onSuccess(sendNotification)
+    eventualActorRef.onFailure(rethrowException)
 
-    def sendNotificationOrThrowException(possiblyActorRef: Try[ActorRef]): Unit = {
-      // this is exactly how you shouldn't use Try and Futures or any other monoid/monad, but it's done intentionally
-      // just to throw an exception in case of failure :) (to show how supervising works...)
-      val actorRef: ActorRef = possiblyActorRef.get
-      actorRef ! notificationToSend.payload
+    def sendNotification: PartialFunction[ActorRef, Unit] = {
+      case ref: ActorRef => ref ! notificationToSend.payload
+    }
+
+    // since promise is resolved in different thread, we have to resend and rethrow exception so it's caught by supervisor
+    def rethrowException: PartialFunction[Throwable, Unit] = {
+      case ex: Throwable => self ! ex
     }
   }
 

@@ -9,7 +9,6 @@ import auction.system.Seller.CreateAuction
 import auction.system.notifications.{AuctionPublisher, Notifier}
 import com.typesafe.config.{Config, ConfigFactory}
 
-import scala.concurrent.Await
 import scala.concurrent.duration._
 
 
@@ -19,13 +18,20 @@ import scala.concurrent.duration._
 object AuctionSystem extends App {
   val config: Config = ConfigFactory.load()
 
-  val auctionPublisherSystem: ActorSystem = ActorSystem("auction-publisher", config.getConfig("auction-publisher").withFallback(config))
-  auctionPublisherSystem.actorOf(Props[AuctionPublisher], "auction-publisher")
+  //  val auctionPublisherSystem: ActorSystem = ActorSystem("auction-publisher", config.getConfig("auction-publisher").withFallback(config))
+  //  auctionPublisherSystem.actorOf(Props[AuctionPublisher], "auction-publisher")
 
   val auctionSystem: ActorSystem = ActorSystem("auction-system", config.getConfig("auction-system").withFallback(config))
   val coordinator: ActorRef = auctionSystem.actorOf(Props[AuctionCoordinator])
   val auctionSearch: ActorRef = auctionSystem.actorOf(Props[AuctionSearch], "auction-search")
   coordinator ! Start(auctionSearch)
+}
+
+object RemoteAuctionPublisher extends App {
+  val config: Config = ConfigFactory.load()
+
+  val auctionPublisherSystem: ActorSystem = ActorSystem("auction-publisher", config.getConfig("auction-publisher").withFallback(config))
+  auctionPublisherSystem.actorOf(Props[AuctionPublisher], "auction-publisher")
 }
 
 class AuctionCoordinator extends Actor {
@@ -49,8 +55,8 @@ class AuctionCoordinator extends Actor {
     seller ! CreateAuction(auction1Timers, auction1Params)
     seller ! CreateAuction(auction2Timers, auction2Params)
 
-    val buyer1: ActorRef = context.actorOf(Buyer.props(auctionSearch, BigDecimal(7), "java"), "buyer1")
-    val buyer2: ActorRef = context.actorOf(Buyer.props(auctionSearch, BigDecimal(5), "java"), "buyer2")
+    val buyer1: ActorRef = context.actorOf(Buyer.props(auctionSearch, BigDecimal(10), "java"), "buyer1")
+    val buyer2: ActorRef = context.actorOf(Buyer.props(auctionSearch, BigDecimal(10), "java"), "buyer2")
 
     Thread.sleep(1000)
 

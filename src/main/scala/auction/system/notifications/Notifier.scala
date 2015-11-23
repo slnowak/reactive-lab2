@@ -1,6 +1,6 @@
 package auction.system.notifications
 
-import akka.actor.SupervisorStrategy.{Restart, Stop}
+import akka.actor.SupervisorStrategy.{Escalate, Restart}
 import akka.actor._
 import auction.system.notifications.Notifier.{Notification, NotificationPayload}
 import auction.system.notifications.NotifierRequest.SuccessfullyDeliveredNotification
@@ -10,7 +10,7 @@ import auction.system.notifications.NotifierRequest.SuccessfullyDeliveredNotific
   */
 class Notifier(auctionPublisher: () => ActorSelection) extends Actor with ActorLogging {
 
-  private val maxRetries = 5
+  private val maxRetries = 10000
 
   override def receive: Receive = {
     case payload: NotificationPayload => sendNotification(payload)
@@ -26,7 +26,7 @@ class Notifier(auctionPublisher: () => ActorSelection) extends Actor with ActorL
       log.debug("Failed to found auctionPublisher, retrying")
       Restart
 
-    case _ => Stop
+    case _ => Escalate
   }
 }
 

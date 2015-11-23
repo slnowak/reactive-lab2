@@ -11,7 +11,7 @@ import scala.concurrent.duration.FiniteDuration
   */
 object Data {
 
-  case class AuctionParams(step: BigDecimal, initialPrice: BigDecimal, startingAt: LocalDateTime = LocalDateTime.now())
+  case class AuctionParams(title: String, step: BigDecimal, initialPrice: BigDecimal, startingAt: LocalDateTime = LocalDateTime.now())
 
   case class BidTimer(duration: FiniteDuration)
 

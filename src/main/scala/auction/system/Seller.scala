@@ -16,16 +16,16 @@ class Seller(auctionFactory: () => ActorRef) extends Actor {
   var pendingAuctions: List[AuctionRef] = List()
 
   override def receive: Receive = {
-    case CreateAuction(timers, params, title) => register(title, timers, params, sender())
+    case CreateAuction(timers, params) => register(timers, params, sender())
     case Registered(auction) => markAsPending(auction)
     case Unregistered(auction) => removeFromPending(auction)
     case AuctionWonBy(_, _) => unregister(sender())
     case NoOffers => unregister(sender())
   }
 
-  private def register(title: String, timers: AuctionTimers, params: AuctionParams, sender: ActorRef): Unit = {
+  private def register(timers: AuctionTimers, params: AuctionParams, sender: ActorRef): Unit = {
     val actorRefForNewAuction = auctionFactory()
-    val newAuction = AuctionRef(title, actorRefForNewAuction)
+    val newAuction = AuctionRef(params.title, actorRefForNewAuction)
 
     newAuction.auction ! StartAuction(timers, params)
     auctionSearch ! Register(newAuction)
@@ -54,7 +54,7 @@ case object Seller {
 
   case class Unregister(auctionRef: AuctionRef)
 
-  case class CreateAuction(timers: AuctionTimers, params: AuctionParams, title: String)
+  case class CreateAuction(timers: AuctionTimers, params: AuctionParams)
 
   case class AuctionCreatedAndRegistered(auctionRef: AuctionRef)
 

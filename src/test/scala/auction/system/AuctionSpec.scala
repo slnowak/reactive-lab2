@@ -18,15 +18,17 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
   var objectUnderTest: ActorRef = _
   var seller: TestProbe = _
   var buyer: TestProbe = _
+  var notifier: TestProbe = _
   var auctionTimers: AuctionTimers = _
   var auctionParams: AuctionParams = _
 
   override protected def beforeEach(): Unit = {
-    objectUnderTest = system.actorOf(Auction.props())
     seller = TestProbe()
     buyer = TestProbe()
+    notifier = TestProbe()
+    objectUnderTest = system.actorOf(Auction.props(() => notifier.ref))
     auctionTimers = AuctionTimers(BidTimer(5 seconds), DeleteTimer(10 seconds))
-    auctionParams = AuctionParams(step = BigDecimal(0.5), initialPrice = BigDecimal(10))
+    auctionParams = AuctionParams(title="title", step = BigDecimal(0.5), initialPrice = BigDecimal(10))
     super.beforeEach()
   }
 

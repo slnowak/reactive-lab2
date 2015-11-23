@@ -11,8 +11,8 @@ import scala.concurrent.duration._
 
 
 /**
- * Created by novy on 18.10.15.
- */
+  * Created by novy on 18.10.15.
+  */
 object AuctionSystem extends App {
   private val system: ActorSystem = ActorSystem("auction-system")
   private val coordinator: ActorRef = system.actorOf(Props[AuctionCoordinator])
@@ -30,16 +30,16 @@ class AuctionCoordinator extends Actor {
 
   private def startSystem(auctionSearch: ActorRef): Unit = {
     val auction1Timers = AuctionTimers(BidTimer(30 seconds), DeleteTimer(60 seconds))
-    val auction1Params = AuctionParams(step = BigDecimal(0.50), initialPrice = BigDecimal(10))
+    val auction1Params = AuctionParams(title = "scala for impatient", step = BigDecimal(0.50), initialPrice = BigDecimal(10))
 
     val auction2Timers = AuctionTimers(BidTimer(30 seconds), DeleteTimer(60 seconds))
-    val auction2Params = AuctionParams(step = BigDecimal(1), initialPrice = BigDecimal(0))
+    val auction2Params = AuctionParams(title = "scala for java programmers", step = BigDecimal(1), initialPrice = BigDecimal(0))
 
     val auctionFactory = () => context.actorOf(Props[Auction])
     val seller = context.actorOf(Seller.props(auctionFactory))
 
-    seller ! CreateAuction(auction1Timers, auction1Params, "scala for impatient")
-    seller ! CreateAuction(auction2Timers, auction2Params, "scala for java programmers")
+    seller ! CreateAuction(auction1Timers, auction1Params)
+    seller ! CreateAuction(auction2Timers, auction2Params)
 
     val buyer1: ActorRef = context.actorOf(Buyer.props(auctionSearch, BigDecimal(500), "scala"), "buyer1")
     val buyer2: ActorRef = context.actorOf(Buyer.props(auctionSearch, BigDecimal(220), "java"), "buyer2")

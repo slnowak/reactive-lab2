@@ -38,8 +38,8 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
     objectUnderTest = customActorSystem.actorOf(Seller.props(() => auctionProbe.ref))
 
     auctionTimers = AuctionTimers(BidTimer(10 seconds), DeleteTimer(5 seconds))
-    auctionParams = AuctionParams(BigDecimal(0.5), BigDecimal(10))
     auctionTitle = "auction"
+    auctionParams = AuctionParams(auctionTitle, BigDecimal(0.5), BigDecimal(10))
   }
 
   override protected def afterEach(): Unit = customActorSystem.terminate()
@@ -50,7 +50,7 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
 
     "respond to create auction request" in {
       // when
-      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams, auctionTitle))
+      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams))
 
       // then
       testProbe.expectMsg(AuctionCreatedAndRegistered(AuctionRef(auctionTitle, auctionProbe.ref)))
@@ -58,7 +58,7 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
 
     "start created auction" in {
       // when
-      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams, auctionTitle))
+      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams))
 
       // then
       auctionProbe.expectMsg(StartAuction(auctionTimers, auctionParams))
@@ -66,7 +66,7 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
 
     "register new auction in AuctionSearch on request" in {
       // when
-      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams, auctionTitle))
+      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams))
 
       // then
       auctionSearch.expectMsg(Register(AuctionRef(auctionTitle, auctionProbe.ref)))
@@ -74,7 +74,7 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
 
     "unregister existing auction from AuctionSearch if it ends without any offer" in {
       // given
-      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams, auctionTitle))
+      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams))
       auctionSearch.send(objectUnderTest, Registered(AuctionRef(auctionTitle, auctionProbe.ref)))
 
       // when
@@ -87,7 +87,7 @@ class SellerTest extends TestKit(ActorSystem()) with WordSpecLike with BeforeAnd
 
     "unregister existing auction from AuctionSearch if it ends with a winner" in {
       // given
-      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams, auctionTitle))
+      testProbe.send(objectUnderTest, CreateAuction(auctionTimers, auctionParams))
       auctionSearch.send(objectUnderTest, Registered(AuctionRef(auctionTitle, auctionProbe.ref)))
 
       // when

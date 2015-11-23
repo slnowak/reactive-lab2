@@ -24,7 +24,7 @@ class PreservingStateTest extends TestKit(ActorSystem("auction-system")) with Wo
   override protected def beforeEach(): Unit = {
     auctionId = UUID.randomUUID().toString
     auctionTimers = AuctionTimers(BidTimer(5 seconds), DeleteTimer(10 seconds))
-    auctionParams = AuctionParams(step = BigDecimal(0.5), initialPrice = BigDecimal(10))
+    auctionParams = AuctionParams(title="title", step = BigDecimal(0.5), initialPrice = BigDecimal(10))
     super.beforeEach()
   }
 
@@ -37,7 +37,7 @@ class PreservingStateTest extends TestKit(ActorSystem("auction-system")) with Wo
 
     "preserve it's internal state in case of failure" in {
       // given
-      val auctionBeforeRestore = system.actorOf(Auction.props(auctionId))
+      val auctionBeforeRestore = system.actorOf(Auction.props(auctionId = auctionId))
       auctionBeforeRestore ! StartAuction(auctionTimers, auctionParams)
 
       val previousOffer = BigDecimal(666f)
@@ -45,7 +45,7 @@ class PreservingStateTest extends TestKit(ActorSystem("auction-system")) with Wo
       expectMsg(BidAccepted(previousOffer))
 
       // when
-      val restoredAction = system.actorOf(Auction.props(auctionId)) // https://groups.google.com/d/msg/akka-user/RZrLVIKPPEg/1QivTZYDhgEJ
+      val restoredAction = system.actorOf(Auction.props(auctionId = auctionId)) // https://groups.google.com/d/msg/akka-user/RZrLVIKPPEg/1QivTZYDhgEJ
 
       restoredAction ! Bid(previousOffer)
 

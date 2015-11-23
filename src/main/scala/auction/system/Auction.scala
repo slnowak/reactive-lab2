@@ -18,7 +18,7 @@ import scala.reflect._
 /**
   * Created by novy on 18.10.15.
   */
-class Auction(auctionId: String) extends PersistentFSM[AuctionState, AuctionData, AuctionEvent] {
+class Auction(auctionId: String, notifier: () => ActorRef) extends PersistentFSM[AuctionState, AuctionData, AuctionEvent] {
 
   import context._
 
@@ -51,9 +51,9 @@ class Auction(auctionId: String) extends PersistentFSM[AuctionState, AuctionData
 
   when(Ignored) {
     case Event(DeleteTimerExpired, _) => stop()
-    case Event(Relist(relistAt), WithConfig(timers, AuctionParams(step, initialPrice, _), seller)) =>
+    case Event(Relist(relistAt), WithConfig(timers, AuctionParams(title, step, initialPrice, _), seller)) =>
       startBidTimer(timers.bidTimer)
-      goto(Created) applying AuctionCreatedEvent(timers, AuctionParams(step, initialPrice, relistAt), sender())
+      goto(Created) applying AuctionCreatedEvent(timers, AuctionParams(title, step, initialPrice, relistAt), sender())
   }
 
   when(Activated) {
@@ -186,5 +186,5 @@ object Bidding {
 }
 
 object Auction {
-  def props(auctionId: String = UUID.randomUUID().toString): Props = Props(new Auction(auctionId))
+  def props(notifier: () => ActorRef = () => Actor.noSender, auctionId: String = UUID.randomUUID().toString): Props = Props(new Auction(auctionId, notifier))
 }

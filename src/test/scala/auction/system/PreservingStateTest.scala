@@ -4,7 +4,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{TestActorRef, ImplicitSender, TestKit, TestProbe}
+import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import auction.system.AuctionCreatedMoveMe.StartAuction
 import auction.system.Bidding.{BidAccepted, BidTooLow}
 import auction.system.Buyer.Bid
@@ -38,7 +38,7 @@ class PreservingStateTest extends TestKit(ActorSystem("auction-system")) with Wo
 
     "preserve it's internal state in case of failure" in {
       // given
-      val dummyNotifier: () => ActorRef = () => TestProbe().ref
+      val dummyNotifier: ActorRef = TestProbe().ref
 
       val auctionBeforeRestore = system.actorOf(Auction.props(dummyNotifier, auctionId))
       auctionBeforeRestore ! StartAuction(auctionTimers, auctionParams)

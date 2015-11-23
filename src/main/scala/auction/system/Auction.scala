@@ -19,7 +19,7 @@ import scala.reflect._
 /**
   * Created by novy on 18.10.15.
   */
-class Auction(auctionId: String, notifier: () => ActorRef) extends PersistentFSM[AuctionState, AuctionData, AuctionEvent] {
+class Auction(auctionId: String, notifier: ActorRef) extends PersistentFSM[AuctionState, AuctionData, AuctionEvent] {
 
   import context._
 
@@ -131,7 +131,7 @@ class Auction(auctionId: String, notifier: () => ActorRef) extends PersistentFSM
   private def startDeleteTimer(timer: DeleteTimer): Unit = system.scheduler.scheduleOnce(timer.duration, self, DeleteTimerExpired)
 
   private def sendNotification(notification: AuctionNotification): Unit = {
-    notifier() ! notification
+    notifier ! notification
   }
 
   private def notifyWinner(highestOffer: Bid): Unit = {
@@ -196,5 +196,5 @@ object Bidding {
 }
 
 object Auction {
-  def props(notifier: () => ActorRef, auctionId: String = UUID.randomUUID().toString): Props = Props(new Auction(auctionId, notifier))
+  def props(notifier: ActorRef, auctionId: String = UUID.randomUUID().toString): Props = Props(new Auction(auctionId, notifier))
 }

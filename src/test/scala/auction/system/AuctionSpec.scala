@@ -27,7 +27,7 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
     seller = TestProbe()
     buyer = TestProbe()
     notifier = TestProbe()
-    objectUnderTest = system.actorOf(Auction.props(() => notifier.ref))
+    objectUnderTest = system.actorOf(Auction.props(notifier.ref))
     auctionTimers = AuctionTimers(BidTimer(5 seconds), DeleteTimer(10 seconds))
     auctionParams = AuctionParams(title = "title", step = BigDecimal(0.5), initialPrice = BigDecimal(10))
     super.beforeEach()
@@ -159,8 +159,7 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
       seller.expectMsg(NoOffers)
     }
 
-    // todo remove tests above?
-    "send notification about new offer" in {
+    "send external notification about new offer" in {
       // given
       seller.send(objectUnderTest, StartAuction(auctionTimers, auctionParams))
 
@@ -172,7 +171,7 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
       notifier.expectMsg(NewOfferArrived(auctionParams.title, BuyerOffer(newOffer, buyer.ref)))
     }
 
-    "send notification if ended without any offers" in {
+    "send external notification if ended without any offers" in {
       // given
       seller.send(objectUnderTest, StartAuction(auctionTimers, auctionParams))
 
@@ -183,7 +182,7 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
       notifier.expectMsg(EndedWithoutOffers(auctionParams.title))
     }
 
-    "send notification on auction end with winning offer" in {
+    "send external notification on auction end with winning offer" in {
       // given
       seller.send(objectUnderTest, StartAuction(auctionTimers, auctionParams))
 

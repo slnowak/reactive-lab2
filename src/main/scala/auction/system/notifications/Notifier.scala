@@ -1,24 +1,33 @@
 package auction.system.notifications
 
+import akka.actor.SupervisorStrategy.{Restart, Stop}
 import akka.actor._
-import auction.system.notifications.Notifier.NotificationPayload
+import auction.system.notifications.Notifier.{Notification, NotificationPayload}
+import auction.system.notifications.NotifierRequest.SuccessfullyDeliveredNotification
 
 /**
   * Created by novy on 23.11.15.
   */
-class Notifier(auctionPublisher: () => ActorSelection) extends Actor {
+class Notifier(auctionPublisher: () => ActorSelection) extends Actor with ActorLogging {
+
+  private val maxRetries = 5
 
   override def receive: Receive = {
     case payload: NotificationPayload => sendNotification(payload)
+    case SuccessfullyDeliveredNotification(payload) => println(s"Successfully delivered notification $payload")
   }
 
   private def sendNotification(payload: NotificationPayload): Unit = {
-    auctionPublisher() ! payload
+    context.actorOf(NotifierRequest.props(notificationToSend = Notification(auctionPublisher(), payload)))
   }
 
-  //  override val supervisorStrategy: SupervisorStrategy = OneForOneStrategy(loggingEnabled = false) {
-  //    case _ => Restart
-  //  }
+  override val supervisorStrategy: SupervisorStrategy = OneForOneStrategy(maxNrOfRetries = maxRetries, loggingEnabled = false) {
+    case _: ActorNotFound =>
+      log.debug("Failed to found auctionPublisher, retrying")
+      Restart
+
+    case _ => Stop
+  }
 }
 
 object Notifier {

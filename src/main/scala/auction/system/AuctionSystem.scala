@@ -49,12 +49,12 @@ class AuctionCoordinator extends Actor {
     seller ! CreateAuction(auction1Timers, auction1Params)
     seller ! CreateAuction(auction2Timers, auction2Params)
 
-    val buyer1: ActorRef = context.actorOf(Buyer.props(auctionSearch, BigDecimal(20), "java"), "buyer1")
-    val buyer2: ActorRef = context.actorOf(Buyer.props(auctionSearch, BigDecimal(20), "java"), "buyer2")
+    val buyer1: ActorRef = context.actorOf(Buyer.props(auctionSearch, BigDecimal(7), "java"), "buyer1")
+    val buyer2: ActorRef = context.actorOf(Buyer.props(auctionSearch, BigDecimal(5), "java"), "buyer2")
 
     Thread.sleep(1000)
 
-    buyer1 ! StartBidding(BigDecimal(2))
+    buyer1 ! StartBidding(BigDecimal(0.5))
     buyer2 ! StartBidding(BigDecimal(2))
   }
 

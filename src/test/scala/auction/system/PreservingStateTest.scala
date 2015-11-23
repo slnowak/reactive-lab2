@@ -1,9 +1,10 @@
 package auction.system
 
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
-import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.actor.{ActorRef, ActorSystem}
+import akka.testkit.{TestActorRef, ImplicitSender, TestKit, TestProbe}
 import auction.system.AuctionCreatedMoveMe.StartAuction
 import auction.system.Bidding.{BidAccepted, BidTooLow}
 import auction.system.Buyer.Bid
@@ -23,8 +24,8 @@ class PreservingStateTest extends TestKit(ActorSystem("auction-system")) with Wo
 
   override protected def beforeEach(): Unit = {
     auctionId = UUID.randomUUID().toString
-    auctionTimers = AuctionTimers(BidTimer(5 seconds), DeleteTimer(10 seconds))
-    auctionParams = AuctionParams(title="title", step = BigDecimal(0.5), initialPrice = BigDecimal(10))
+    auctionTimers = AuctionTimers(BidTimer(50 seconds), DeleteTimer(100 seconds))
+    auctionParams = AuctionParams(title = "title", step = BigDecimal(0.5), initialPrice = BigDecimal(10))
     super.beforeEach()
   }
 
@@ -37,15 +38,18 @@ class PreservingStateTest extends TestKit(ActorSystem("auction-system")) with Wo
 
     "preserve it's internal state in case of failure" in {
       // given
-      val auctionBeforeRestore = system.actorOf(Auction.props(auctionId = auctionId))
+      val dummyNotifier: () => ActorRef = () => TestProbe().ref
+
+      val auctionBeforeRestore = system.actorOf(Auction.props(dummyNotifier, auctionId))
       auctionBeforeRestore ! StartAuction(auctionTimers, auctionParams)
 
       val previousOffer = BigDecimal(666f)
       auctionBeforeRestore ! Bid(previousOffer)
+      TimeUnit.SECONDS.sleep(1)
       expectMsg(BidAccepted(previousOffer))
 
       // when
-      val restoredAction = system.actorOf(Auction.props(auctionId = auctionId)) // https://groups.google.com/d/msg/akka-user/RZrLVIKPPEg/1QivTZYDhgEJ
+      val restoredAction = system.actorOf(Auction.props(dummyNotifier, auctionId)) // https://groups.google.com/d/msg/akka-user/RZrLVIKPPEg/1QivTZYDhgEJ
 
       restoredAction ! Bid(previousOffer)
 
@@ -53,5 +57,4 @@ class PreservingStateTest extends TestKit(ActorSystem("auction-system")) with Wo
       expectMsg(BidTooLow(previousOffer, previousOffer + auctionParams.step))
     }
   }
-
 }

@@ -5,14 +5,15 @@ import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import auction.system.AuctionCreatedMoveMe.{BidTimerExpired, StartAuction}
 import auction.system.Bidding._
 import auction.system.Buyer.Bid
-import auction.system.Data.{AuctionParams, AuctionTimers, BidTimer, DeleteTimer}
+import auction.system.Data.{AuctionParams, AuctionTimers, Bid => BuyerOffer, BidTimer, DeleteTimer}
+import auction.system.notifications.{EndedWithWinner, EndedWithoutOffers, NewOfferArrived}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, WordSpecLike}
 
 import scala.concurrent.duration._
 
 /**
- * Created by novy on 02.11.15.
- */
+  * Created by novy on 02.11.15.
+  */
 class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLike with BeforeAndAfterEach with BeforeAndAfterAll with ImplicitSender {
 
   var objectUnderTest: ActorRef = _
@@ -28,7 +29,7 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
     notifier = TestProbe()
     objectUnderTest = system.actorOf(Auction.props(() => notifier.ref))
     auctionTimers = AuctionTimers(BidTimer(5 seconds), DeleteTimer(10 seconds))
-    auctionParams = AuctionParams(title="title", step = BigDecimal(0.5), initialPrice = BigDecimal(10))
+    auctionParams = AuctionParams(title = "title", step = BigDecimal(0.5), initialPrice = BigDecimal(10))
     super.beforeEach()
   }
 
@@ -156,6 +157,45 @@ class AuctionSpec extends TestKit(ActorSystem("auction-system")) with WordSpecLi
 
       // then
       seller.expectMsg(NoOffers)
+    }
+
+    // todo remove tests above?
+    "send notification about new offer" in {
+      // given
+      seller.send(objectUnderTest, StartAuction(auctionTimers, auctionParams))
+
+      // when
+      val newOffer = BigDecimal(666)
+      buyer.send(objectUnderTest, Bid(newOffer))
+
+      // then
+      notifier.expectMsg(NewOfferArrived(auctionParams.title, BuyerOffer(newOffer, buyer.ref)))
+    }
+
+    "send notification if ended without any offers" in {
+      // given
+      seller.send(objectUnderTest, StartAuction(auctionTimers, auctionParams))
+
+      // when
+      objectUnderTest ! BidTimerExpired
+
+      // then
+      notifier.expectMsg(EndedWithoutOffers(auctionParams.title))
+    }
+
+    "send notification on auction end with winning offer" in {
+      // given
+      seller.send(objectUnderTest, StartAuction(auctionTimers, auctionParams))
+
+      // when
+      val winningOffer = BigDecimal(666)
+      buyer.send(objectUnderTest, Bid(winningOffer))
+      notifier.expectMsg(NewOfferArrived(auctionParams.title, BuyerOffer(winningOffer, buyer.ref)))
+
+      objectUnderTest ! BidTimerExpired
+
+      // then
+      notifier.expectMsg(EndedWithWinner(auctionParams.title, BuyerOffer(winningOffer, buyer.ref)))
     }
   }
 }

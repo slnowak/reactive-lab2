@@ -12,6 +12,7 @@ import auction.system.AuctionStates._
 import auction.system.Bidding._
 import auction.system.Buyer.{Bid => BuyerOffer}
 import auction.system.Data._
+import auction.system.notifications.{AuctionNotification, EndedWithWinner, EndedWithoutOffers, NewOfferArrived}
 
 import scala.reflect._
 
@@ -34,14 +35,17 @@ class Auction(auctionId: String, notifier: () => ActorRef) extends PersistentFSM
       goto(Created) applying AuctionCreatedEvent(timers, params, sender())
   }
 
+  // todo: remove seller notifications?
   when(Created) {
-    case Event(BidTimerExpired, cfg@WithConfig(timers, _, seller)) =>
+    case Event(BidTimerExpired, cfg@WithConfig(timers, params, seller)) =>
       notifySellerThereWereNoOffers(seller)
+      sendNotification(EndedWithoutOffers(params.title))
       startDeleteTimer(timers.deleteTimer)
       goto(Ignored) applying BidTimerExpiredEvent
 
     case Event(BuyerOffer(amount), cfg@WithConfig(_, params, _)) if exceedsInitialValue(amount, params) =>
       notifyBuyerThatBidHasBeenAccepted(amount, sender())
+      sendNotification(NewOfferArrived(params.title, Bid(amount, sender())))
       goto(Activated) applying AuctionActivatedEvent(cfg, Bid(amount, sender()))
 
     case Event(BuyerOffer(amount), cfg@WithConfig(_, params, _)) if !exceedsInitialValue(amount, params) =>
@@ -60,16 +64,18 @@ class Auction(auctionId: String, notifier: () => ActorRef) extends PersistentFSM
     case Event(BuyerOffer(amount), WithConfigAndOffers(cfg@WithConfig(_, params, _), offers@topOffer :: _)) if exceedsOldBid(amount, topOffer, params) =>
       notifyBuyerThatBidHasBeenAccepted(amount, sender())
       notifyPreviousBuyerAboutBidTop(topOffer, amount, params)
+      sendNotification(NewOfferArrived(params.title, Bid(amount, sender())))
       stay applying NewHighestOfferArrivedEvent(cfg, Bid(amount, sender()))
 
     case Event(BuyerOffer(amount), data@WithConfigAndOffers(WithConfig(_, params, _), topOffer :: _)) if !exceedsOldBid(amount, topOffer, params) =>
       notifyAboutTooLowBid(amount, sender(), requiredNextBid(params, Some(topOffer)))
       stay()
 
-    case Event(BidTimerExpired, WithConfigAndOffers(cfg@WithConfig(timers, _, seller), winner :: _)) =>
+    case Event(BidTimerExpired, WithConfigAndOffers(cfg@WithConfig(timers, params, seller), winner :: _)) =>
       startDeleteTimer(timers.deleteTimer)
       notifySellerAboutWinner(seller, winner)
       notifyWinner(winner)
+      sendNotification(EndedWithWinner(params.title, winner))
       goto(Sold) applying AuctionEndedEvent(cfg, winner)
   }
 
@@ -123,6 +129,10 @@ class Auction(auctionId: String, notifier: () => ActorRef) extends PersistentFSM
   private def startBidTimer(bidTimer: BidTimer): Unit = system.scheduler.scheduleOnce(bidTimer.duration, self, BidTimerExpired)
 
   private def startDeleteTimer(timer: DeleteTimer): Unit = system.scheduler.scheduleOnce(timer.duration, self, DeleteTimerExpired)
+
+  private def sendNotification(notification: AuctionNotification): Unit = {
+    notifier() ! notification
+  }
 
   private def notifyWinner(highestOffer: Bid): Unit = {
     highestOffer.buyer ! AuctionWon(highestOffer.amount)
@@ -186,5 +196,5 @@ object Bidding {
 }
 
 object Auction {
-  def props(notifier: () => ActorRef = () => Actor.noSender, auctionId: String = UUID.randomUUID().toString): Props = Props(new Auction(auctionId, notifier))
+  def props(notifier: () => ActorRef, auctionId: String = UUID.randomUUID().toString): Props = Props(new Auction(auctionId, notifier))
 }

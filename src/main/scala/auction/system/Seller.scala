@@ -3,7 +3,8 @@ package auction.system
 import akka.actor.{Props, Actor, ActorRef}
 import auction.system.AuctionCoordinator.Start
 import auction.system.AuctionCreatedMoveMe.StartAuction
-import auction.system.AuctionSearch.{Registered, Unregistered}
+import auction.system.auctionsearch.AuctionSearch
+import AuctionSearch.{Registered, Unregistered}
 import auction.system.Bidding.{AuctionWonBy, NoOffers}
 import auction.system.Data.{AuctionParams, AuctionTimers}
 import auction.system.Seller._
@@ -21,6 +22,7 @@ class Seller(auctionFactory: () => ActorRef) extends Actor {
     case Unregistered(auction) => removeFromPending(auction)
     case AuctionWonBy(_, _) => unregister(sender())
     case NoOffers => unregister(sender())
+    case msg: Registered => context.parent ! msg
   }
 
   private def register(timers: AuctionTimers, params: AuctionParams, sender: ActorRef): Unit = {

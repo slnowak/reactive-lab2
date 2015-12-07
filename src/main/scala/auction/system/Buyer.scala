@@ -2,7 +2,8 @@ package auction.system
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.LoggingReceive
-import auction.system.AuctionSearch.QueryResult
+import auction.system.auctionsearch.AuctionSearch
+import AuctionSearch.QueryResult
 import auction.system.Bidding.{AuctionWon, BidAccepted, BidTooLow, BidTopBySomeoneElse}
 import auction.system.Buyer._
 import auction.system.Seller.AuctionRef

@@ -3,7 +3,8 @@ package auction.system
 import akka.actor.{Actor, ActorRef, ActorSystem}
 import akka.routing.RoundRobinRoutingLogic
 import akka.testkit._
-import auction.system.AuctionSearch.{Registered, Unregistered}
+import auction.system.auctionsearch.{MasterSearch, AuctionSearch}
+import AuctionSearch.{Registered, Unregistered}
 import auction.system.Seller.{AuctionRef, Register, Unregister}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, WordSpecLike}
 

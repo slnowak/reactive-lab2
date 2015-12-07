@@ -1,4 +1,4 @@
-package auction.system
+package auction.system.auctionsearch
 
 import auction.system.Seller.AuctionRef
 

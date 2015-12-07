@@ -3,7 +3,8 @@ package auction.system
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActors, TestKit, TestProbe}
 import auction.system.AuctionCreatedMoveMe.StartAuction
-import auction.system.AuctionSearch.Registered
+import auction.system.auctionsearch.AuctionSearch
+import AuctionSearch.Registered
 import auction.system.Bidding.{AuctionWonBy, NoOffers}
 import auction.system.Data.{AuctionParams, AuctionTimers, BidTimer, DeleteTimer}
 import auction.system.Seller._

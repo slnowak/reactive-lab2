@@ -1,11 +1,11 @@
-package auction.system
+package auction.system.auctionsearch
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.LoggingReceive
 import akka.routing.{ActorRefRoutee, Broadcast, Router, RoutingLogic}
-import auction.system.AuctionSearch.{Registered, Unregistered}
 import auction.system.Buyer.FindAuctions
 import auction.system.Seller.{AuctionRef, Register, Unregister}
+import auction.system.auctionsearch.AuctionSearch.{Registered, Unregistered}
 
 /**
   * Created by novy on 07.12.15.

@@ -6,6 +6,7 @@ import auction.system.AuctionCoordinator.Start
 import auction.system.Buyer.StartBidding
 import auction.system.Data.{AuctionParams, AuctionTimers, BidTimer, DeleteTimer}
 import auction.system.Seller.CreateAuction
+import auction.system.auctionsearch.AuctionSearch
 import auction.system.notifications.{AuctionPublisher, Notifier}
 import com.typesafe.config.{Config, ConfigFactory}
 

@@ -2,7 +2,8 @@ package auction.system
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
-import auction.system.AuctionSearch.QueryResult
+import auction.system.auctionsearch.AuctionSearch
+import AuctionSearch.QueryResult
 import auction.system.Bidding.{BidTooLow, BidTopBySomeoneElse}
 import auction.system.Buyer.{Bid, FindAuctions, StartBidding}
 import auction.system.Seller.AuctionRef

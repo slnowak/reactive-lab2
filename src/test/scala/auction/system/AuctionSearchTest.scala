@@ -2,7 +2,8 @@ package auction.system
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
-import auction.system.AuctionSearch.{QueryResult, Registered, Unregistered}
+import auction.system.auctionsearch.AuctionSearch
+import AuctionSearch.{QueryResult, Registered, Unregistered}
 import auction.system.Buyer.FindAuctions
 import auction.system.Seller.{AuctionRef, Register, Unregister}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, WordSpecLike}

@@ -1,10 +1,10 @@
-package auction.system
+package auction.system.auctionsearch
 
 import akka.actor.{Actor, ActorRef}
 import akka.event.LoggingReceive
-import auction.system.AuctionSearch.{QueryResult, Registered, Unregistered}
 import auction.system.Buyer.FindAuctions
 import auction.system.Seller.{AuctionRef, Register, Unregister}
+import auction.system.auctionsearch.AuctionSearch.{QueryResult, Registered, Unregistered}
 
 /**
  * Created by novy on 02.11.15.
